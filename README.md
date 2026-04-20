@@ -1,167 +1,108 @@
-📡 Fix Wi-Fi Drops on Linux (RTL8723BE)
+# 📡 Исправление разрывов Wi-Fi на Linux (RTL8723BE)
+Решение проблем с нестабильным соединением для адаптеров **Realtek RTL8723BE**.
+---## 🧩 Проблема
+На ноутбуках с чипом **RTL8723BE** Wi-Fi может:- Случайно отключаться.- Показывать слабый или нестабильный сигнал.
+- Исчезать из системы с ошибкой `No such device (-19)`.- Постоянно переподключаться.
 
-🧩 Problem
-
-On laptops with the ****, Wi-Fi may:
-
-- randomly disconnect
-- show weak or unstable signal
-- disappear ("No such device (-19)")
-- reconnect intermittently
-
-This is typically caused by:
-
-- incorrect antenna selection
-- aggressive power saving
-- unstable Realtek driver behavior
-
----
-
-💻 Affected Hardware
-
-Example device:
-
-- ASUS VivoBook Max
-
-But applies to any laptop with RTL8723BE.
-
----
-
-✅ Solution (Stable Configuration)
-
-1. Configure Driver (Antenna Fix)
-
-Create config file:
-
+**Основные причины:**1. Неправильный выбор антенны драйвером (их две, но задействована может быть одна).2. Агрессивное энергосбережение Linux.3. Нестабильная работа стандартного драйвера Realtek.
+---## 💻 Совместимое оборудование
+Инструкция применима к любым ноутбукам с модулем **RTL8723BE**, например:- **ASUS VivoBook Max**- HP Pavilion / Compaq- Lenovo Ideapad
+---## ✅ Решение (Стабильная конфигурация)### 1. Настройка драйвера (Исправление антенны)
+Создайте файл конфигурации:
+```bash
 sudo nano /etc/modprobe.d/rtl8723be.conf
 
-Add:
+Добавьте в него следующую строку:
 
 options rtl8723be ant_sel=2 ips=0 fwlps=0
 
-🔧 Explanation
+🔧 Разбор параметров:
 
-- "ant_sel=2" → forces correct antenna (critical fix)
-- "ips=0" → disables power saving
-- "fwlps=0" → disables firmware power saving
+* ant_sel=2 — принудительно выбирает вторую антенну (критически важное исправление).
+* ips=0 — отключает программное энергосбережение (Idle Power Save).
+* fwlps=0 — отключает энергосбережение на уровне прошивки (Firmware Low Power State).
 
----
-
-2. Apply Changes
-
-Reload module:
+------------------------------
+## 2. Применение изменений
+Перезагрузите модуль драйвера:
 
 sudo modprobe -r rtl8723be
 sudo modprobe rtl8723be
 
-Or reboot:
-
-reboot
-
----
-
-3. Disable NetworkManager Power Saving
-
-Create config:
+Или просто выполните reboot.
+------------------------------
+## 3. Отключение энергосбережения в NetworkManager
+Создайте конфиг:
 
 sudo nano /etc/NetworkManager/conf.d/wifi-powersave.conf
 
-Add:
+Добавьте:
 
 [connection]
 wifi.powersave = 2
 
-Apply:
+Примените настройки:
 
 sudo systemctl restart NetworkManager
 
----
-
-4. Disable Wi-Fi Power Save (runtime)
-
-Install tool:
+------------------------------
+## 4. Отключение Power Save в реальном времени (Runtime)
+Установите инструмент iw:
 
 sudo apt install iw
 
-Check interface:
+Узнайте имя вашего интерфейса:
 
 iw dev
 
-Disable power save:
+Отключите спящий режим (замените wlp3s0 на имя вашего интерфейса):
 
 sudo iw dev wlp3s0 set power_save off
 
-«Replace "wlp3s0" with your actual interface.»
-
----
-
-🔍 Verification
-
-Check parameters:
+------------------------------
+## 🔍 Проверка параметров
+Убедитесь, что настройки применились:
 
 cat /sys/module/rtl8723be/parameters/ant_sel
 cat /sys/module/rtl8723be/parameters/ips
 cat /sys/module/rtl8723be/parameters/fwlps
 
-Expected:
+Ожидаемый результат: 2, N, N.
+------------------------------
+## 🧪 Диагностика (Troubleshooting)
+Если Wi-Fi всё еще не работает, проверьте следующее:
 
-2
-N
-N
+* Наличие интерфейса: ip link или iw dev
+* Загружен ли драйвер: lsmod | grep rtl8723be
+* Системные логи: dmesg | grep -i rtl
 
----
+------------------------------
+## ⚠️ Важные примечания
 
-🧪 Troubleshooting
+* Параметр ant_sel зависит от конкретной модели ноутбука. Если сигнал всё еще слабый, попробуйте изменить значение на ant_sel=1.
+* Драйверы Realtek для старых чипов часто работают нестабильно на новых ядрах Linux.
 
-Check interface:
+------------------------------
+## 🚀 Рекомендуемая альтернатива
+Если программные методы не помогают, лучшим решением будет:
 
-iw dev
-ip link
+* Замена модуля на Intel или Atheros (если позволяет BIOS ноутбука).
+* Использование внешнего USB Wi-Fi адаптера с хорошей поддержкой Linux.
 
-Check driver:
+------------------------------
+## 📌 Резюме
 
-lsmod | grep rtl8723be
+| Исправление | Статус |
+|---|---|
+| Тюнинг ant_sel | ✅ Критично |
+| Отключение энергосбережения | ✅ Важно |
+| Перезагрузка драйвера | ✅ Необходимо |
 
-Logs:
+------------------------------
+## 📜 Лицензия
+MIT / Свободно для использования.
 
-dmesg | grep -i rtl
 
----
-
-⚠️ Notes
-
-- "ant_sel" is hardware-dependent:
-  - try "1" or "2" if unstable
-- Realtek drivers are known to be unreliable on Linux
-
----
-
-🚀 Recommended Alternative (Best Stability)
-
-Replace internal Wi-Fi with:
-
-- USB adapter (Intel / Atheros chipset)
-
-Benefits:
-
-- stable connection
-- better signal
-- no driver issues
-
----
-
-📌 Summary
-
-Fix| Required
-ant_sel tuning| ✅ critical
-disable power save| ✅ important
-reload driver| ✅ required
-
----
-
-📜 License
-
-MIT / Free to use
 
 
 ---
